@@ -1,0 +1,47 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: orders-item-1
+  namespace: confluent
+spec:
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+  replicas: 1
+  partitionCount: 3
+  configs:
+    cleanup.policy: "delete"
+---
+# VALUE schema (orderid INT, itemid STRING, orderunits DOUBLE)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orders-item-1-value-avro-schema
+  namespace: confluent
+data:
+  schema: |
+    {
+      "type": "record",
+      "name": "OrderItem",
+      "namespace": "io.confluent.training.avro",
+      "fields": [
+        { "name": "orderid", "type": "int" },
+        { "name": "itemid", "type": "string" },
+        { "name": "orderunits", "type": "double" }
+      ]
+    }
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Schema
+metadata:
+  name: orders-item-1-value
+  namespace: confluent
+spec:
+  schemaRegistryClusterRef:
+    name: schemaregistry
+    namespace: confluent
+  data:
+    configRef: orders-item-1-value-avro-schema
+    format: avro
+  compatibilityLevel: BACKWARD
