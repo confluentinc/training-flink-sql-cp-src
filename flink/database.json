@@ -1,0 +1,17 @@
+{
+  "apiVersion": "cmf.confluent.io/v1",
+  "kind": "KafkaDatabase",
+  "metadata": {
+    "name": "training-kafka"
+  },
+  "spec": {
+    "kafkaCluster": {
+      "connectionConfig": {
+        "bootstrap.servers": "kafka.confluent.svc.cluster.local:9071"
+      }
+    },
+    "ddlEnvironments": [
+      "training-env"
+    ]
+  }
+}
