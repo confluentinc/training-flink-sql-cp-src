@@ -1,0 +1,207 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-customers
+  namespace: confluent
+spec:
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+  replicas: 1
+  partitionCount: 1
+  configs:
+    cleanup.policy: "delete"
+---
+# VALUE schema for shoe customers
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shoe-customers-value-avro-schema
+  namespace: confluent
+data:
+  schema: |
+    {
+      "type": "record",
+      "name": "shoe_customers",
+      "namespace": "io.confluent.training.avro",
+      "fields": [
+        { "name": "id", "type": "string" },
+        { "name": "first_name", "type": "string" },
+        { "name": "last_name", "type": "string" },
+        { "name": "email", "type": "string" },
+        { "name": "phone", "type": "string" },
+        { "name": "street_address", "type": "string" },
+        { "name": "state", "type": "string" },
+        { "name": "zip_code", "type": "string" },
+        { "name": "country", "type": "string" },
+        { "name": "country_code", "type": "string" }
+      ]
+    }
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Schema
+metadata:
+  name: shoe-customers-value
+  namespace: confluent
+spec:
+  schemaRegistryClusterRef:
+    name: schemaregistry
+    namespace: confluent
+  data:
+    configRef: shoe-customers-value-avro-schema
+    format: avro
+  compatibilityLevel: BACKWARD
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-products
+  namespace: confluent
+spec:
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+  replicas: 1
+  partitionCount: 1
+  configs:
+    cleanup.policy: "delete"
+---
+# VALUE schema for shoe products
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shoe-products-value-avro-schema
+  namespace: confluent
+data:
+  schema: |
+    {
+      "type": "record",
+      "name": "shoe_product",
+      "namespace": "io.confluent.training.avro",
+      "fields": [
+        { "name": "id", "type": "string" },
+        { "name": "brand", "type": "string" },
+        { "name": "name", "type": "string" },
+        { "name": "sale_price", "type": "int" },
+        { "name": "rating", "type": "double" }
+      ]
+    }
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Schema
+metadata:
+  name: shoe-products-value
+  namespace: confluent
+spec:
+  schemaRegistryClusterRef:
+    name: schemaregistry
+    namespace: confluent
+  data:
+    configRef: shoe-products-value-avro-schema
+    format: avro
+  compatibilityLevel: BACKWARD
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-orders
+  namespace: confluent
+spec:
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+  replicas: 1
+  partitionCount: 1
+  configs:
+    cleanup.policy: "delete"
+---
+# VALUE schema for shoe orders
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shoe-orders-value-avro-schema
+  namespace: confluent
+data:
+  schema: |
+    {
+      "type": "record",
+      "name": "shoe_orders",
+      "namespace": "io.confluent.training.avro",
+      "fields": [
+        { "name": "order_id", "type": "int" },
+        { "name": "product_id", "type": "string" },
+        { "name": "customer_id", "type": "string" },
+        {
+          "name": "ts",
+          "type": { "type": "long", "logicalType": "timestamp-millis" }
+        }
+      ]
+    }
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Schema
+metadata:
+  name: shoe-orders-value
+  namespace: confluent
+spec:
+  schemaRegistryClusterRef:
+    name: schemaregistry
+    namespace: confluent
+  data:
+    configRef: shoe-orders-value-avro-schema
+    format: avro
+  compatibilityLevel: BACKWARD
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: KafkaTopic
+metadata:
+  name: shoe-clickstream
+  namespace: confluent
+spec:
+  kafkaClusterRef:
+    name: kafka
+    namespace: confluent
+  replicas: 1
+  partitionCount: 1
+  configs:
+    cleanup.policy: "delete"
+---
+# VALUE schema for shoe clickstream
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shoe-clickstream-value-avro-schema
+  namespace: confluent
+data:
+  schema: |
+    {
+      "type": "record",
+      "name": "shoe_clickstream",
+      "namespace": "io.confluent.training.avro",
+      "fields": [
+        { "name": "product_id", "type": "string" },
+        { "name": "user_id", "type": "string" },
+        { "name": "view_time", "type": "int" },
+        { "name": "page_url", "type": "string" },
+        { "name": "ip", "type": "string" },
+        {
+          "name": "ts",
+          "type": { "type": "long", "logicalType": "timestamp-millis" }
+        }
+      ]
+    }
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Schema
+metadata:
+  name: shoe-clickstream-value
+  namespace: confluent
+spec:
+  schemaRegistryClusterRef:
+    name: schemaregistry
+    namespace: confluent
+  data:
+    configRef: shoe-clickstream-value-avro-schema
+    format: avro
+  compatibilityLevel: BACKWARD
