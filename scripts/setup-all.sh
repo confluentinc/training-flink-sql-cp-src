@@ -23,6 +23,7 @@ NAMESPACE="confluent"
 CMF_URL="${CMF_URL:-https://localhost:8080}"
 CERT_MANAGER_VER="v1.20.2"
 FLINK_OPERATOR_CHART_VER="1.140.1"
+CFK_OPERATOR_CHART_VER="0.1514.40"
 
 # Lab TLS material — populated after the cert-manager phase
 LAB_DIR="${LAB_DIR:-$HOME/.lab}"
@@ -202,8 +203,10 @@ helm repo update
 if helm status operator -n "$NAMESPACE" >/dev/null 2>&1; then
   log "CFK operator already installed."
 else
-  log "Installing CFK operator..."
-  helm upgrade --install operator confluentinc/confluent-for-kubernetes -n "$NAMESPACE"
+  log "Installing CFK operator (chart ${CFK_OPERATOR_CHART_VER})..."
+  helm upgrade --install operator confluentinc/confluent-for-kubernetes \
+    --version "${CFK_OPERATOR_CHART_VER}" \
+    -n "$NAMESPACE"
 fi
 
 log "Waiting for CFK operator pod..."
@@ -441,7 +444,7 @@ cat <<EOF
     CMF UI           : https://localhost:8080
     Schema Registry  : https://localhost:8081
     Kafka (SSL)      : localhost:9094
-    Flink REST       : https://localhost:8082
+    Flink REST       : http://localhost:8082    (JM REST stays HTTP — CMF 2.3.1 hardcodes http:// for results-fetch)
     S3proxy          : https://localhost:8000
 
   Flink resources:
