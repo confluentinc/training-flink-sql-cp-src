@@ -31,8 +31,11 @@ LAB_TRUSTSTORE="${LAB_TRUSTSTORE:-$LAB_DIR/truststore.jks}"
 LAB_TRUSTSTORE_PASSWORD="${LAB_TRUSTSTORE_PASSWORD:-changeit}"
 CURL_TLS=()  # populated to (--cacert "$LAB_CA_CRT") once the CA exists
 
-# Local Docker images (pre-built, loaded into Kind instead of pulling from ECR)
-CMF_IMAGE="519856050701.dkr.ecr.us-west-2.amazonaws.com/docker/dev/confluentinc/cp-cmf:2.3.0"
+# Public Docker Hub images. If they're already in the host Docker daemon
+# (e.g. pre-staged on a training VM), the script will `kind load` them into
+# the cluster runtime to avoid a registry pull at pod-start time. Otherwise
+# Kubernetes will pull them itself when the pod is scheduled.
+CMF_IMAGE="confluentinc/cp-cmf:2.3.1"
 FLINK_SQL_IMAGE="confluentinc/cp-flink-sql:1.19-cp7"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -320,7 +323,7 @@ elif [[ -n "$CMF_LOCAL_CHART" && -d "$CMF_LOCAL_CHART" ]]; then
     --set image.repository="${CMF_REPO}" \
     --set image.name="${CMF_NAME}" \
     --set image.tag="${CMF_TAG}" \
-    --set image.pullPolicy=Never \
+    --set image.pullPolicy=IfNotPresent \
     -f "${CMF_VALUES}" \
     --namespace "$NAMESPACE"
 else
