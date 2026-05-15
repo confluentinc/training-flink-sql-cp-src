@@ -265,6 +265,44 @@ spec:
     kind: ClusterIssuer
     group: cert-manager.io
 ---
+# Flink JobManager REST listener cert (SANs cover the per-compute-pool Service
+# created by the Flink K8s Operator: <compute-pool-name>-rest)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: flink-jm-tls
+  namespace: confluent
+spec:
+  secretName: flink-jm-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: flink-jm
+  dnsNames:
+    - training-compute-pool-rest
+    - training-compute-pool-rest.confluent
+    - training-compute-pool-rest.confluent.svc.cluster.local
+    - "*.training-compute-pool-rest.confluent.svc.cluster.local"
+    - training-compute-pool-dedicated-rest
+    - training-compute-pool-dedicated-rest.confluent
+    - training-compute-pool-dedicated-rest.confluent.svc.cluster.local
+    - "*.training-compute-pool-dedicated-rest.confluent.svc.cluster.local"
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  keystores:
+    jks:
+      create: true
+      passwordSecretRef:
+        name: lab-truststore-password
+        key: password
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
 # S3proxy server cert (used by an init container to build a JKS keystore)
 apiVersion: cert-manager.io/v1
 kind: Certificate

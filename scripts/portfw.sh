@@ -21,7 +21,7 @@ FORWARDS=(
   "service/cmf-service 8080:80"
   "pod/kafka-0 9094:9092"
   "svc/schemaregistry 8081:8081"
-  "service/flink-statement-rest 8082:8081"
+  "service/training-compute-pool-rest 8082:8081"
   "service/controlcenter 9021:9021"
 )
 
@@ -57,7 +57,14 @@ kill_existing_ports() {
 start_forward() {
   local target="$1" mapping="$2"
   echo ">> Forwarding ${target}  ${mapping} (namespace ${NS})"
-  kubectl -n "${NS}" port-forward "${target}" ${mapping} >/dev/null 2>&1 &
+  # Self-restarting loop: kubectl port-forward dies on apiserver idle timeouts,
+  # pod restarts, and transient blips. The loop respawns it after a brief pause
+  # so the forward stays usable for the duration of the lab.
+  ( set +e
+    while true; do
+      kubectl -n "${NS}" port-forward "${target}" ${mapping} >/dev/null 2>&1
+      sleep 2
+    done ) &
   echo $! >> "${PIDFILE}"
 }
 
@@ -73,7 +80,13 @@ start_all_forwards() {
 stop_pidfile_forwards() {
   if [[ -f "${PIDFILE}" ]]; then
     echo ">> Stopping port-forwards from ${PIDFILE}"
-    kill -9 $(cat "${PIDFILE}") 2>/dev/null || true
+    # Each PID in the file is a self-restarting loop subshell. Kill its kubectl
+    # child first so it doesn't get orphaned, then kill the subshell itself.
+    while read -r pid; do
+      [[ -z "$pid" ]] && continue
+      pkill -TERM -P "$pid" 2>/dev/null || true
+      kill -9 "$pid" 2>/dev/null || true
+    done < "${PIDFILE}"
     rm -f "${PIDFILE}"
   else
     echo ">> No PID file found at ${PIDFILE}; nothing to stop."

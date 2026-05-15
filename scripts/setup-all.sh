@@ -242,7 +242,7 @@ log "Waiting for all component certificates to be issued..."
 for cert in kraftcontroller-tls kafka-tls schemaregistry-tls controlcenter-tls \
             prometheus-tls alertmanager-tls prometheus-client-tls \
             alertmanager-client-tls prometheus-exporter-truststore \
-            cmf-tls s3proxy-tls; do
+            cmf-tls flink-jm-tls s3proxy-tls; do
   kubectl wait --for=condition=Ready "certificate/${cert}" -n "$NAMESPACE" --timeout=120s
 done
 
