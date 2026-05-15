@@ -12,7 +12,7 @@ set -uo pipefail
 # NOTE: set -e intentionally omitted — CMF may be unreachable after a restart
 # and we must always reach the K8s-level cleanup (Step 4).
 
-CMF_URL="${CMF_URL:-https://localhost:8443}"
+CMF_URL="${CMF_URL:-https://localhost:8080}"
 FLINK_ENV="${FLINK_ENV:-training-env}"
 NAMESPACE="${NAMESPACE:-confluent}"
 LAB_CA_CRT="${LAB_CA_CRT:-$HOME/.lab/ca.crt}"
@@ -35,7 +35,7 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "Options:"
       echo "  --environment NAME   Flink environment name (default: training-env)"
-      echo "  --url URL            CMF URL (default: https://localhost:8443)"
+      echo "  --url URL            CMF URL (default: https://localhost:8080)"
       echo "  --namespace NS       Kubernetes namespace (default: confluent)"
       echo "  --delete-all         Also delete COMPLETED/FAILED/STOPPED statements from CMF"
       exit 0

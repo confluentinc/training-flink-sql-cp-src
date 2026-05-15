@@ -20,7 +20,7 @@ set -euo pipefail
 KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-confluent-flink}"
 KIND_IMAGE="kindest/node:v1.35.1"
 NAMESPACE="confluent"
-CMF_URL="${CMF_URL:-https://localhost:8443}"
+CMF_URL="${CMF_URL:-https://localhost:8080}"
 CERT_MANAGER_VER="v1.20.2"
 FLINK_OPERATOR_CHART_VER="1.140.1"
 
@@ -267,6 +267,7 @@ export CMF_URL="$CMF_URL"
 EOF
 
 CURL_TLS=(--cacert "$LAB_CA_CRT")
+CONFLUENT_TLS=(--certificate-authority-path "$LAB_CA_CRT")
 
 # ════════════════════════════════════════════════════════════════════════════
 # PHASE 5: Confluent Platform (Kafka, SR, Control Center) — TLS-enabled
@@ -373,14 +374,14 @@ else
   # Environment
   log "Creating Flink environment 'training-env'..."
   confluent flink environment create training-env \
-    --url "${CMF_URL}" \
+    --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" \
     --kubernetes-namespace "$NAMESPACE" 2>/dev/null \
     || log "Environment 'training-env' may already exist."
 
   # Catalog
   log "Creating Flink catalog 'training-catalog'..."
   confluent flink catalog create "${LABS_SRC}/flink/catalog.json" \
-    --url "${CMF_URL}" 2>/dev/null \
+    --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null \
     || log "Catalog 'training-catalog' may already exist."
 
   # Database (REST API — CLI doesn't support this yet)
@@ -394,20 +395,20 @@ else
   log "Creating Flink compute pool 'training-compute-pool'..."
   confluent flink compute-pool create "${LABS_SRC}/flink/compute-pool.json" \
     --environment training-env \
-    --url "${CMF_URL}" 2>/dev/null \
+    --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null \
     || log "Compute pool 'training-compute-pool' may already exist."
 
   # Verify
   log "Verifying Flink resources..."
   echo
   echo "  Environments:"
-  confluent flink environment list --url "${CMF_URL}" 2>/dev/null || true
+  confluent flink environment list --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null || true
   echo
   echo "  Catalogs:"
-  confluent flink catalog list --url "${CMF_URL}" 2>/dev/null || true
+  confluent flink catalog list --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null || true
   echo
   echo "  Compute pools:"
-  confluent flink compute-pool list --environment training-env --url "${CMF_URL}" 2>/dev/null || true
+  confluent flink compute-pool list --environment training-env --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null || true
   echo
 fi
 
@@ -420,9 +421,9 @@ cat <<EOF
   Kubernetes cluster : kind-${KIND_CLUSTER_NAME}
   Namespace          : ${NAMESPACE}
 
-  Services (port-forwarded, all TLS):
+  Services (port-forwarded, all TLS via lab CA):
     Control Center   : https://localhost:9021
-    CMF UI           : https://localhost:8443
+    CMF UI           : https://localhost:8080
     Schema Registry  : https://localhost:8081
     Kafka (SSL)      : localhost:9094
     Flink REST       : https://localhost:8082

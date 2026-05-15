@@ -15,13 +15,15 @@
 set -euo pipefail
 
 NAMESPACE="confluent"
-CMF_URL="${CMF_URL:-https://localhost:8443}"
+CMF_URL="${CMF_URL:-https://localhost:8080}"
 KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-confluent-flink}"
 LABS_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 LAB_CA_CRT="${LAB_CA_CRT:-$HOME/.lab/ca.crt}"
 CURL_TLS=()
 [[ -f "$LAB_CA_CRT" ]] && CURL_TLS=(--cacert "$LAB_CA_CRT")
+CONFLUENT_TLS=()
+[[ -f "$LAB_CA_CRT" ]] && CONFLUENT_TLS=(--certificate-authority-path "$LAB_CA_CRT")
 
 LAB_NUM=""
 DO_FIX=false
@@ -131,7 +133,7 @@ port_open() {
 
 PF_OK=true
 warn_check "Control Center (port 9021)" port_open 9021 || PF_OK=false
-warn_check "CMF (port 8443)" port_open 8443 || PF_OK=false
+warn_check "CMF (port 8080)" port_open 8080 || PF_OK=false
 warn_check "Schema Registry (port 8081)" port_open 8081 || PF_OK=false
 warn_check "Kafka (port 9094)" port_open 9094 || PF_OK=false
 
@@ -162,8 +164,7 @@ if [[ -n "$LAB_NUM" ]]; then
       if [[ "$DO_FIX" == true ]] && command -v confluent >/dev/null 2>&1; then
         echo -e "  ${WARN} Creating Flink environment 'training-env'..."
         if confluent flink environment create training-env \
-          --url "${CMF_URL}" \
-          --certificate-authority-path "${LAB_CA_CRT}" \
+          --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" \
           --kubernetes-namespace "$NAMESPACE" 2>/dev/null; then
           echo -e "  ${PASS} Environment created"; ERRORS=$((ERRORS - 1))
         else
@@ -174,14 +175,13 @@ if [[ -n "$LAB_NUM" ]]; then
 
     # Catalog
     catalog_exists() {
-      confluent flink catalog list --url "${CMF_URL}" --certificate-authority-path "${LAB_CA_CRT}" 2>/dev/null | grep -q "training-catalog"
+      confluent flink catalog list --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null | grep -q "training-catalog"
     }
     if ! check "Flink catalog 'training-catalog'" catalog_exists; then
       if [[ "$DO_FIX" == true ]] && command -v confluent >/dev/null 2>&1; then
         echo -e "  ${WARN} Creating Flink catalog 'training-catalog'..."
         if confluent flink catalog create "${LABS_SRC}/flink/catalog.json" \
-          --url "${CMF_URL}" \
-          --certificate-authority-path "${LAB_CA_CRT}" 2>/dev/null; then
+          --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null; then
           echo -e "  ${PASS} Catalog created"; ERRORS=$((ERRORS - 1))
         else
           echo -e "  ${FAIL} Failed to create catalog"
@@ -208,15 +208,14 @@ if [[ -n "$LAB_NUM" ]]; then
 
     # Compute pool
     pool_exists() {
-      confluent flink compute-pool list --environment training-env --url "${CMF_URL}" --certificate-authority-path "${LAB_CA_CRT}" 2>/dev/null | grep -q "training-compute-pool"
+      confluent flink compute-pool list --environment training-env --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null | grep -q "training-compute-pool"
     }
     if ! check "Flink compute pool 'training-compute-pool'" pool_exists; then
       if [[ "$DO_FIX" == true ]] && command -v confluent >/dev/null 2>&1; then
         echo -e "  ${WARN} Creating Flink compute pool 'training-compute-pool'..."
         if confluent flink compute-pool create "${LABS_SRC}/flink/compute-pool.json" \
           --environment training-env \
-          --url "${CMF_URL}" \
-          --certificate-authority-path "${LAB_CA_CRT}" 2>/dev/null; then
+          --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null; then
           echo -e "  ${PASS} Compute pool created"; ERRORS=$((ERRORS - 1))
         else
           echo -e "  ${FAIL} Failed to create compute pool"
@@ -250,14 +249,14 @@ if [[ -n "$LAB_NUM" ]]; then
       # Delete orphaned CMF statements (only if CMF is reachable)
       if [[ "$CMF_REACHABLE" == true ]] && command -v confluent >/dev/null 2>&1; then
         confluent flink statement list \
-          --environment training-env --url "${CMF_URL}" --certificate-authority-path "${LAB_CA_CRT}" 2>/dev/null \
+          --environment training-env --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null \
           | awk -F'|' 'NR>1 && $2 ~ /[a-zA-Z0-9]/ {gsub(/^[ \t]+|[ \t]+$/, "", $2); if ($2 != "" && $2 != "Name") print $2}' \
           | while IFS= read -r stmt; do
               [[ -z "$stmt" ]] && continue
               confluent flink statement stop "$stmt" \
-                --environment training-env --url "${CMF_URL}" --certificate-authority-path "${LAB_CA_CRT}" 2>/dev/null || true
+                --environment training-env --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null || true
               echo y | confluent flink statement delete "$stmt" \
-                --environment training-env --url "${CMF_URL}" --certificate-authority-path "${LAB_CA_CRT}" 2>/dev/null || true
+                --environment training-env --url "${CMF_URL}" "${CONFLUENT_TLS[@]}" 2>/dev/null || true
             done
       fi
       echo -e "  ${PASS} Stale jobs and HA metadata cleaned up"
@@ -353,7 +352,7 @@ else
   echo
   echo "  Services (TLS):"
   echo "    Control Center : https://localhost:9021"
-  echo "    CMF            : https://localhost:8443"
+  echo "    CMF            : https://localhost:8080"
   echo "    Schema Registry: https://localhost:8081"
   echo "    Kafka (SSL)    : localhost:9094"
   echo "    Lab CA cert    : ${LAB_CA_CRT}"

@@ -63,6 +63,13 @@ spec:
   dataVolumeCapacity: 10Gi
   tls:
     secretRef: kafka-tls
+  listeners:
+    internal:
+      tls:
+        enabled: true
+    external:
+      tls:
+        enabled: true
   mountedVolumes:
     volumes:
       - name: prometheus-truststore
@@ -113,11 +120,7 @@ spec:
       - confluent.telemetry.exporter._c3.https.ssl.truststore.location=/mnt/exporter-truststore/truststore.jks
       - confluent.telemetry.exporter._c3.https.ssl.truststore.password=changeit
       - confluent.telemetry.exporter._c3.https.ssl.truststore.type=JKS
-      - listeners=BROKER://0.0.0.0:9071,EXTERNAL://0.0.0.0:9094
-      - advertised.listeners=BROKER://kafka.confluent.svc.cluster.local:9071,EXTERNAL://localhost:9094
-      - controller.listener.names=CONTROLLER
-      - listener.security.protocol.map=BROKER:SSL,EXTERNAL:SSL,CONTROLLER:SSL
-      - inter.broker.listener.name=BROKER
+      - advertised.listeners=EXTERNAL://localhost:9094,INTERNAL://kafka-0.kafka.confluent.svc.cluster.local:9071,REPLICATION://kafka-0.kafka.confluent.svc.cluster.local:9072
 ---
 apiVersion: platform.confluent.io/v1beta1
 kind: SchemaRegistry
@@ -183,7 +186,7 @@ spec:
   configOverrides:
     server:
       - confluent.controlcenter.cmf.enable=True
-      - confluent.controlcenter.cmf.url=https://cmf-service:8443
+      - confluent.controlcenter.cmf.url=https://cmf-service:80
       - confluent.controlcenter.replication.factor=1
       - confluent.controlcenter.monitoring.interceptor.topic.partitions=1
       - confluent.controlcenter.internal.topics.partitions=1

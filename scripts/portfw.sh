@@ -11,13 +11,15 @@ NS="confluent"
 PIDFILE="${TMPDIR:-/tmp}/confluent-portfw.pids"
 
 # Local ports we want to ensure are free before (re)forwarding
-PORTS=(8443 9094 8081 8082 9021)
+PORTS=(8080 9094 8081 8082 9021)
 
 # Forward specs: "<kubectl-target> <LOCAL:REMOTE>"
-# All services now serve TLS — see labs-src/k8s/cert-manager/component-certs.yaml
+# All services serve TLS via the lab CA managed by cert-manager.
+# CMF Service is on port 80 but the pod speaks HTTPS on 8080 (cmf.ssl in
+# labs-src/k8s/cmf/values.yaml), so https://localhost:8080 -> service:80 works.
 FORWARDS=(
-  "service/cmf-service 8443:8443"
-  "pod/kafka-0 9094:9094"
+  "service/cmf-service 8080:80"
+  "pod/kafka-0 9094:9092"
   "svc/schemaregistry 8081:8081"
   "service/flink-statement-rest 8082:8081"
   "service/controlcenter 9021:9021"
@@ -92,7 +94,7 @@ kill_existing_ports
 start_all_forwards
 
 echo ">> Done."
-echo "   - CMF UI     : https://localhost:8443"
+echo "   - CMF UI     : https://localhost:8080"
 echo "   - Kafka (SSL): localhost:9094"
 echo "   - Schema Reg : https://localhost:8081"
 echo "   - Flink REST : https://localhost:8082"

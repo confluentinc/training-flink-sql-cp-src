@@ -21,7 +21,7 @@ if [[ ! -f "$LAB_TRUSTSTORE" || ! -f "$LAB_CA_CRT" ]]; then
   exit 1
 fi
 
-CMF_URL="${CMF_URL:-https://localhost:8443}"
+CMF_URL="${CMF_URL:-https://localhost:8080}"
 FLINK_ENV="${FLINK_ENV:-training-env}"
 COMPUTE_POOL="${COMPUTE_POOL:-training-compute-pool}"
 CATALOG_NAME="${CATALOG_NAME:-training-catalog}"
@@ -49,7 +49,7 @@ for arg in "$@"; do
       echo "  LAB_CA_CRT           Path to lab CA cert PEM (default: \$HOME/.lab/ca.crt)"
       echo "  DELAY_MS             Delay between iterations in ms (default: 1000)"
       echo "  COUNT                Number of iterations, 0 = infinite (default: 0)"
-      echo "  CMF_URL              CMF REST API base URL (default: https://localhost:8443)"
+      echo "  CMF_URL              CMF REST API base URL (default: https://localhost:8080)"
       echo "  FLINK_ENV            Flink environment name (default: training-env)"
       echo "  COMPUTE_POOL         Flink compute pool name (default: training-compute-pool)"
       echo "  CATALOG_NAME         Flink catalog name (default: training-catalog)"
