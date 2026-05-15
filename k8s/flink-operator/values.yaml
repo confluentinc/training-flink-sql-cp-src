@@ -14,14 +14,18 @@
 # (compute-pool.json).
 
 operatorVolumes:
-  - name: lab-tls
-    secret:
-      secretName: flink-jm-tls
+  create: true
+  data:
+    - name: lab-tls
+      secret:
+        secretName: flink-jm-tls
 
 operatorVolumeMounts:
-  - name: lab-tls
-    mountPath: /mnt/lab-tls
-    readOnly: true
+  create: true
+  data:
+    - name: lab-tls
+      mountPath: /mnt/lab-tls
+      readOnly: true
 
 # Watch only the confluent namespace (passed via --set in setup-all.sh,
 # duplicated here so the values file is self-contained for inspection).
