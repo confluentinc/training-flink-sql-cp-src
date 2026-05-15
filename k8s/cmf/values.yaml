@@ -28,7 +28,7 @@ cmf:
   # Inbound: CMF REST API listener speaks HTTPS on container port 8080.
   ssl:
     enabled: true
-    key-store: /mnt/cmf-tls/keystore.jks
+    key-store: /mnt/lab-tls/keystore.jks
     key-store-password: changeit
     key-store-type: JKS
 
@@ -41,15 +41,15 @@ mountedVolumes:
         secretName: cmf-tls
   volumeMounts:
     - name: cmf-tls
-      mountPath: /mnt/cmf-tls
+      mountPath: /mnt/lab-tls
       readOnly: true
 
 # Outbound TLS: every JVM client inside CMF (Kafka producer/consumer to :9071,
 # Schema Registry HTTP client to :8081) reads JAVA_TOOL_OPTIONS automatically.
 extraEnv:
   - name: JAVA_TOOL_OPTIONS
-    value: "-Djavax.net.ssl.trustStore=/mnt/cmf-tls/truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS"
+    value: "-Djavax.net.ssl.trustStore=/mnt/lab-tls/truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS"
 
 # Same flags via the chart's `jvmArgs` arg (single string, passed to the
 # entrypoint as the second CLI arg). Harmless if the entrypoint ignores it.
-jvmArgs: "-Djavax.net.ssl.trustStore=/mnt/cmf-tls/truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS"
+jvmArgs: "-Djavax.net.ssl.trustStore=/mnt/lab-tls/truststore.jks -Djavax.net.ssl.trustStorePassword=changeit -Djavax.net.ssl.trustStoreType=JKS"

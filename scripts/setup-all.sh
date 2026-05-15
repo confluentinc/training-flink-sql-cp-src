@@ -253,6 +253,14 @@ mkdir -p "$LAB_DIR"
 kubectl get secret lab-ca-secret -n cert-manager -o jsonpath='{.data.ca\.crt}' \
   | base64 --decode > "$LAB_CA_CRT"
 
+# Mirror the lab CA Secret into the confluent namespace so in-cluster workloads
+# (e.g. the s3proxy-init mc job) can mount it as a volume.
+log "Mirroring lab-ca-secret into ${NAMESPACE} namespace..."
+kubectl get secret lab-ca-secret -n cert-manager -o yaml \
+  | sed -e "s/namespace: cert-manager/namespace: ${NAMESPACE}/" \
+        -e '/resourceVersion:/d' -e '/uid:/d' -e '/creationTimestamp:/d' \
+  | kubectl apply -n "$NAMESPACE" -f -
+
 log "Building JKS truststore at ${LAB_TRUSTSTORE}..."
 rm -f "$LAB_TRUSTSTORE"
 keytool -importcert -noprompt -trustcacerts \
