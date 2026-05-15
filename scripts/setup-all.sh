@@ -301,9 +301,13 @@ if helm status cp-flink-kubernetes-operator -n "$NAMESPACE" >/dev/null 2>&1; the
 else
   log "Installing Flink Kubernetes Operator (chart ${FLINK_OPERATOR_CHART_VER})..."
   kubectl config set-context --current --namespace="$NAMESPACE"
+  # values.yaml mounts the lab CA truststore at /mnt/lab-tls so the operator
+  # can validate the JM's lab-CA-signed REST cert (security.ssl.rest.* in
+  # compute-pool.json points at that path).
   helm upgrade --install cp-flink-kubernetes-operator \
     --version "${FLINK_OPERATOR_CHART_VER}" \
     confluentinc/flink-kubernetes-operator \
+    -f "${LABS_SRC}/k8s/flink-operator/values.yaml" \
     --set watchNamespaces="{${NAMESPACE}}"
 fi
 

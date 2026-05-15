@@ -1,0 +1,29 @@
+# Helm values for confluentinc/flink-kubernetes-operator (~1.140.x).
+#
+# When the JobManager has `security.ssl.rest.enabled: true` (configured in
+# labs-src/flink/compute-pool.json), the Flink K8s Operator's internal REST
+# client tries to talk to the JM over HTTPS. The operator reads the truststore
+# path from the FlinkDeployment's flinkConfiguration verbatim
+# (security.ssl.rest.truststore=/mnt/lab-tls/truststore.jks) and tries to load
+# that file FROM ITS OWN POD'S FILESYSTEM. So the operator pod needs the
+# truststore mounted at the same path as the JM pod.
+#
+# Mount the cert-manager-issued flink-jm-tls Secret (which contains both the
+# server cert and a JKS truststore with the lab CA) at /mnt/lab-tls — same
+# convention used by CMF (cmf/values.yaml) and the JM podTemplate
+# (compute-pool.json).
+
+operatorVolumes:
+  - name: lab-tls
+    secret:
+      secretName: flink-jm-tls
+
+operatorVolumeMounts:
+  - name: lab-tls
+    mountPath: /mnt/lab-tls
+    readOnly: true
+
+# Watch only the confluent namespace (passed via --set in setup-all.sh,
+# duplicated here so the values file is self-contained for inspection).
+watchNamespaces:
+  - confluent
