@@ -22,7 +22,7 @@ spec:
           secretName: prometheus-exporter-truststore
     volumeMounts:
       - name: prometheus-truststore
-        mountPath: /mnt/sslcerts
+        mountPath: /mnt/exporter-truststore
   dependencies:
     metricsClient:
       url: https://controlcenter.confluent.svc.cluster.local:9090
@@ -46,7 +46,7 @@ spec:
       - confluent.telemetry.remoteconfig._confluent.enabled=false
       - confluent.consumer.lag.emitter.enabled=true
       - confluent.telemetry.exporter._c3.https.ssl.protocol=TLSv1.2
-      - confluent.telemetry.exporter._c3.https.ssl.truststore.location=/mnt/sslcerts/truststore.jks
+      - confluent.telemetry.exporter._c3.https.ssl.truststore.location=/mnt/exporter-truststore/truststore.jks
       - confluent.telemetry.exporter._c3.https.ssl.truststore.password=changeit
       - confluent.telemetry.exporter._c3.https.ssl.truststore.type=JKS
 ---
@@ -70,7 +70,7 @@ spec:
           secretName: prometheus-exporter-truststore
     volumeMounts:
       - name: prometheus-truststore
-        mountPath: /mnt/sslcerts
+        mountPath: /mnt/exporter-truststore
   dependencies:
     kRaftController:
       clusterRef:
@@ -110,7 +110,7 @@ spec:
       - confluent.telemetry.remoteconfig._confluent.enabled=false
       - confluent.consumer.lag.emitter.enabled=true
       - confluent.telemetry.exporter._c3.https.ssl.protocol=TLSv1.2
-      - confluent.telemetry.exporter._c3.https.ssl.truststore.location=/mnt/sslcerts/truststore.jks
+      - confluent.telemetry.exporter._c3.https.ssl.truststore.location=/mnt/exporter-truststore/truststore.jks
       - confluent.telemetry.exporter._c3.https.ssl.truststore.password=changeit
       - confluent.telemetry.exporter._c3.https.ssl.truststore.type=JKS
       - listeners=BROKER://0.0.0.0:9071,EXTERNAL://0.0.0.0:9094
