@@ -40,7 +40,7 @@ public class OrdersProducer {
 
     public static void main(String[] args) throws InterruptedException {
         String bootstrap = System.getenv().getOrDefault("BOOTSTRAP_SERVERS", "localhost:9094");
-        String schemaRegistryUrl = System.getenv().getOrDefault("SCHEMA_REGISTRY_URL", "http://localhost:8081");
+        String schemaRegistryUrl = System.getenv().getOrDefault("SCHEMA_REGISTRY_URL", "https://localhost:8081");
         long delayMs = Long.parseLong(System.getenv().getOrDefault("DELAY_MS", "500"));
 
         Properties props = new Properties();
@@ -51,6 +51,18 @@ public class OrdersProducer {
         props.put(ProducerConfig.LINGER_MS_CONFIG, "100");
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, "16384");
         props.put("schema.registry.url", schemaRegistryUrl);
+
+        String truststore = System.getenv("LAB_TRUSTSTORE");
+        if (truststore != null && !truststore.isEmpty()) {
+            String tsPassword = System.getenv().getOrDefault("LAB_TRUSTSTORE_PASSWORD", "changeit");
+            props.put("security.protocol", "SSL");
+            props.put("ssl.truststore.location", truststore);
+            props.put("ssl.truststore.password", tsPassword);
+            props.put("ssl.truststore.type", "JKS");
+            props.put("schema.registry.ssl.truststore.location", truststore);
+            props.put("schema.registry.ssl.truststore.password", tsPassword);
+            props.put("schema.registry.ssl.truststore.type", "JKS");
+        }
 
         Schema schema = new Schema.Parser().parse(SCHEMA_JSON);
         Schema addressSchema = schema.getField("address").schema();

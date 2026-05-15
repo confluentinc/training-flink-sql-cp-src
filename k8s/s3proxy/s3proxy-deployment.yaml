@@ -23,11 +23,29 @@ spec:
       labels:
         app: s3proxy
     spec:
+      initContainers:
+        # cert-manager generates a JKS keystore via its `keystores.jks` block
+        # (see labs-src/k8s/cert-manager/component-certs.yaml).
+        # We copy it into an emptyDir so the s3proxy container can read it
+        # without needing keytool itself.
+        - name: keystore-loader
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - cp /mnt/source/keystore.jks /mnt/keystore/keystore.jks && chmod 0444 /mnt/keystore/keystore.jks
+          volumeMounts:
+            - name: s3proxy-tls-source
+              mountPath: /mnt/source
+              readOnly: true
+            - name: s3proxy-keystore
+              mountPath: /mnt/keystore
       containers:
         - name: s3proxy
           image: andrewgaul/s3proxy:3.0.0
           ports:
             - containerPort: 8000
+              name: https
           env:
             - name: S3PROXY_AUTHORIZATION
               value: "aws-v2-or-v4"
@@ -36,7 +54,14 @@ spec:
             - name: S3PROXY_CREDENTIAL
               value: "password"
             - name: S3PROXY_ENDPOINT
-              value: "http://0.0.0.0:8000"
+              value: "https://0.0.0.0:8000"
+            - name: S3PROXY_KEYSTORE_PATH
+              value: "/mnt/keystore/keystore.jks"
+            - name: S3PROXY_KEYSTORE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: lab-truststore-password
+                  key: password
             - name: JCLOUDS_PROVIDER
               value: "filesystem"
             - name: JCLOUDS_FILESYSTEM_BASEDIR
@@ -44,10 +69,18 @@ spec:
           volumeMounts:
             - name: s3proxy-storage
               mountPath: /data
+            - name: s3proxy-keystore
+              mountPath: /mnt/keystore
+              readOnly: true
       volumes:
         - name: s3proxy-storage
           persistentVolumeClaim:
             claimName: s3proxy-data
+        - name: s3proxy-tls-source
+          secret:
+            secretName: s3proxy-tls
+        - name: s3proxy-keystore
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -59,4 +92,5 @@ spec:
   ports:
     - port: 8000
       targetPort: 8000
+      name: https
   type: ClusterIP

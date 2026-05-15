@@ -76,7 +76,7 @@ public class ShoeProducer {
 
     public static void main(String[] args) throws Exception {
         String bootstrap = env("BOOTSTRAP_SERVERS", "localhost:9094");
-        String schemaRegistryUrl = env("SCHEMA_REGISTRY_URL", "http://localhost:8081");
+        String schemaRegistryUrl = env("SCHEMA_REGISTRY_URL", "https://localhost:8081");
         long delayMs = Long.parseLong(env("DELAY_MS", "1000"));
         int count = Integer.parseInt(env("COUNT", "0")); // 0 = infinite
 
@@ -104,6 +104,18 @@ public class ShoeProducer {
         props.put(ProducerConfig.LINGER_MS_CONFIG, "50");
         props.put(ProducerConfig.BATCH_SIZE_CONFIG, "16384");
         props.put("schema.registry.url", schemaRegistryUrl);
+
+        String truststore = System.getenv("LAB_TRUSTSTORE");
+        if (truststore != null && !truststore.isEmpty()) {
+            String tsPassword = env("LAB_TRUSTSTORE_PASSWORD", "changeit");
+            props.put("security.protocol", "SSL");
+            props.put("ssl.truststore.location", truststore);
+            props.put("ssl.truststore.password", tsPassword);
+            props.put("ssl.truststore.type", "JKS");
+            props.put("schema.registry.ssl.truststore.location", truststore);
+            props.put("schema.registry.ssl.truststore.password", tsPassword);
+            props.put("schema.registry.ssl.truststore.type", "JKS");
+        }
 
         Schema custSchema = new Schema.Parser().parse(CUSTOMERS_SCHEMA_JSON);
         Schema prodSchema = new Schema.Parser().parse(PRODUCTS_SCHEMA_JSON);

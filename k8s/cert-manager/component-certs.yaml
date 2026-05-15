@@ -1,0 +1,298 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kraftcontroller-tls
+  namespace: confluent
+spec:
+  secretName: kraftcontroller-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: kraftcontroller
+  dnsNames:
+    - kraftcontroller
+    - kraftcontroller.confluent
+    - kraftcontroller.confluent.svc.cluster.local
+    - "*.kraftcontroller.confluent.svc.cluster.local"
+    - "*.kraftcontroller-0-internal.confluent.svc.cluster.local"
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kafka-tls
+  namespace: confluent
+spec:
+  secretName: kafka-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: kafka
+  dnsNames:
+    - kafka
+    - kafka.confluent
+    - kafka.confluent.svc.cluster.local
+    - "*.kafka.confluent.svc.cluster.local"
+    - "*.kafka-0-internal.confluent.svc.cluster.local"
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: schemaregistry-tls
+  namespace: confluent
+spec:
+  secretName: schemaregistry-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: schemaregistry
+  dnsNames:
+    - schemaregistry
+    - schemaregistry.confluent
+    - schemaregistry.confluent.svc.cluster.local
+    - "*.schemaregistry.confluent.svc.cluster.local"
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: controlcenter-tls
+  namespace: confluent
+spec:
+  secretName: controlcenter-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: controlcenter
+  dnsNames:
+    - controlcenter
+    - controlcenter.confluent
+    - controlcenter.confluent.svc.cluster.local
+    - "*.controlcenter.confluent.svc.cluster.local"
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# Server cert for ControlCenter's embedded Prometheus
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus-tls
+  namespace: confluent
+spec:
+  secretName: prometheus-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: prometheus
+  dnsNames:
+    - controlcenter
+    - controlcenter.confluent
+    - controlcenter.confluent.svc.cluster.local
+    - "*.controlcenter.confluent.svc.cluster.local"
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# Server cert for ControlCenter's embedded Alertmanager
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: alertmanager-tls
+  namespace: confluent
+spec:
+  secretName: alertmanager-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: alertmanager
+  dnsNames:
+    - controlcenter
+    - controlcenter.confluent
+    - controlcenter.confluent.svc.cluster.local
+    - "*.controlcenter.confluent.svc.cluster.local"
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# Client cert used by Kafka/KRaft/CC to push metrics into Prometheus
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus-client-tls
+  namespace: confluent
+spec:
+  secretName: prometheus-client-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: prometheus-client
+  usages:
+    - client auth
+    - digital signature
+    - key encipherment
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# Client cert used by ControlCenter to talk to Alertmanager
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: alertmanager-client-tls
+  namespace: confluent
+spec:
+  secretName: alertmanager-client-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: alertmanager-client
+  usages:
+    - client auth
+    - digital signature
+    - key encipherment
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# Truststore secret consumed by KRaft/Kafka pods (mounted at /mnt/sslcerts)
+# Built from the lab CA so brokers can trust the Prometheus OTLP endpoint.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus-exporter-truststore
+  namespace: confluent
+spec:
+  secretName: prometheus-exporter-truststore
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: prometheus-exporter-truststore
+  keystores:
+    jks:
+      create: true
+      passwordSecretRef:
+        name: lab-truststore-password
+        key: password
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# Password used for the JKS truststore generated above
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lab-truststore-password
+  namespace: confluent
+type: Opaque
+stringData:
+  password: changeit
+---
+# CMF server cert
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cmf-tls
+  namespace: confluent
+spec:
+  secretName: cmf-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: cmf
+  dnsNames:
+    - cmf-service
+    - cmf-service.confluent
+    - cmf-service.confluent.svc.cluster.local
+    - "*.cmf-service.confluent.svc.cluster.local"
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  keystores:
+    jks:
+      create: true
+      passwordSecretRef:
+        name: lab-truststore-password
+        key: password
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# S3proxy server cert (used by an init container to build a JKS keystore)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: s3proxy-tls
+  namespace: confluent
+spec:
+  secretName: s3proxy-tls
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  commonName: s3proxy
+  dnsNames:
+    - s3proxy
+    - s3proxy.confluent
+    - s3proxy.confluent.svc.cluster.local
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  keystores:
+    jks:
+      create: true
+      passwordSecretRef:
+        name: lab-truststore-password
+        key: password
+  issuerRef:
+    name: lab-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

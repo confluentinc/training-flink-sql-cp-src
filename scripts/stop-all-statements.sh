@@ -12,10 +12,14 @@ set -uo pipefail
 # NOTE: set -e intentionally omitted — CMF may be unreachable after a restart
 # and we must always reach the K8s-level cleanup (Step 4).
 
-CMF_URL="${CMF_URL:-http://localhost:8080}"
+CMF_URL="${CMF_URL:-https://localhost:8443}"
 FLINK_ENV="${FLINK_ENV:-training-env}"
 NAMESPACE="${NAMESPACE:-confluent}"
+LAB_CA_CRT="${LAB_CA_CRT:-$HOME/.lab/ca.crt}"
 DELETE_ALL=false
+
+CONFLUENT_TLS=()
+[[ -f "$LAB_CA_CRT" ]] && CONFLUENT_TLS=(--certificate-authority-path "$LAB_CA_CRT")
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -31,7 +35,7 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "Options:"
       echo "  --environment NAME   Flink environment name (default: training-env)"
-      echo "  --url URL            CMF URL (default: http://localhost:8080)"
+      echo "  --url URL            CMF URL (default: https://localhost:8443)"
       echo "  --namespace NS       Kubernetes namespace (default: confluent)"
       echo "  --delete-all         Also delete COMPLETED/FAILED/STOPPED statements from CMF"
       exit 0
@@ -51,7 +55,7 @@ echo "Checking for statements in environment '$FLINK_ENV'..."
 RUNNING=$(confluent flink statement list \
   --status RUNNING \
   --environment "$FLINK_ENV" \
-  --url "$CMF_URL" 2>/dev/null | extract_names || true)
+  --url "$CMF_URL" "${CONFLUENT_TLS[@]}" 2>/dev/null | extract_names || true)
 
 COUNT=0
 if [[ -n "$RUNNING" ]]; then
@@ -60,7 +64,7 @@ if [[ -n "$RUNNING" ]]; then
     echo "  Stopping: $name"
     confluent flink statement stop "$name" \
       --environment "$FLINK_ENV" \
-      --url "$CMF_URL" 2>/dev/null && echo "    Stopped." || echo "    Failed to stop."
+      --url "$CMF_URL" "${CONFLUENT_TLS[@]}" 2>/dev/null && echo "    Stopped." || echo "    Failed to stop."
     COUNT=$((COUNT + 1))
   done <<< "$RUNNING"
   echo "Stopped $COUNT statement(s)."
@@ -72,7 +76,7 @@ fi
 PENDING=$(confluent flink statement list \
   --status PENDING \
   --environment "$FLINK_ENV" \
-  --url "$CMF_URL" 2>/dev/null | extract_names || true)
+  --url "$CMF_URL" "${CONFLUENT_TLS[@]}" 2>/dev/null | extract_names || true)
 
 if [[ -n "$PENDING" ]]; then
   echo "  Stopping PENDING statements..."
@@ -81,7 +85,7 @@ if [[ -n "$PENDING" ]]; then
     echo "    Stopping: $name"
     confluent flink statement stop "$name" \
       --environment "$FLINK_ENV" \
-      --url "$CMF_URL" 2>/dev/null || true
+      --url "$CMF_URL" "${CONFLUENT_TLS[@]}" 2>/dev/null || true
   done <<< "$PENDING"
 fi
 
@@ -90,7 +94,7 @@ if [[ "$DELETE_ALL" == true ]]; then
   echo "  Deleting all statements from CMF..."
   ALL_STMTS=$(confluent flink statement list \
     --environment "$FLINK_ENV" \
-    --url "$CMF_URL" 2>/dev/null | extract_names || true)
+    --url "$CMF_URL" "${CONFLUENT_TLS[@]}" 2>/dev/null | extract_names || true)
 
   if [[ -n "$ALL_STMTS" ]]; then
     while IFS= read -r name; do
@@ -98,7 +102,7 @@ if [[ "$DELETE_ALL" == true ]]; then
       echo "    Deleting: $name"
       echo y | confluent flink statement delete "$name" \
         --environment "$FLINK_ENV" \
-        --url "$CMF_URL" 2>/dev/null || true
+        --url "$CMF_URL" "${CONFLUENT_TLS[@]}" 2>/dev/null || true
     done <<< "$ALL_STMTS"
   fi
 fi

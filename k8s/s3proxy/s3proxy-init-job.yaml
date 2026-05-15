@@ -17,8 +17,18 @@ spec:
             - /bin/sh
             - -c
             - |
-              until mc alias set s3proxy http://s3proxy:8000 admin password; do
+              mkdir -p /root/.mc/certs/CAs
+              cp /mnt/ca/ca.crt /root/.mc/certs/CAs/lab-ca.crt
+              until mc alias set s3proxy https://s3proxy:8000 admin password; do
                 echo '...waiting...'
                 sleep 1
               done
               mc mb -p s3proxy/warehouse
+          volumeMounts:
+            - name: lab-ca
+              mountPath: /mnt/ca
+              readOnly: true
+      volumes:
+        - name: lab-ca
+          secret:
+            secretName: lab-ca-secret

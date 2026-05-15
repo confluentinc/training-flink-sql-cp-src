@@ -7,7 +7,10 @@
   "spec": {
     "srInstance": {
       "connectionConfig": {
-        "schema.registry.url": "http://schemaregistry.confluent.svc.cluster.local:8081"
+        "schema.registry.url": "https://schemaregistry.confluent.svc.cluster.local:8081",
+        "schema.registry.ssl.truststore.location": "/mnt/lab-tls/truststore.jks",
+        "schema.registry.ssl.truststore.password": "changeit",
+        "schema.registry.ssl.truststore.type": "JKS"
       }
     }
   }

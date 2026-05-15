@@ -1,0 +1,41 @@
+---
+# Bootstrap self-signed Issuer used to mint the lab CA
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: lab-ca-bootstrap
+  namespace: cert-manager
+spec:
+  selfSigned: {}
+---
+# Lab CA certificate, signed by the bootstrap self-signed Issuer
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lab-ca-cert
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: training-flink-sql-cp-lab-ca
+  subject:
+    organizations:
+      - Confluent ILT
+  duration: 8760h        # 1 year
+  renewBefore: 720h      # 30 days
+  privateKey:
+    algorithm: RSA
+    size: 4096
+  secretName: lab-ca-secret
+  issuerRef:
+    name: lab-ca-bootstrap
+    kind: Issuer
+    group: cert-manager.io
+---
+# Cluster-scoped Issuer that all lab components will reference
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: lab-ca-issuer
+spec:
+  ca:
+    secretName: lab-ca-secret

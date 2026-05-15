@@ -20,9 +20,16 @@ set -euo pipefail
 KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-confluent-flink}"
 KIND_IMAGE="kindest/node:v1.35.1"
 NAMESPACE="confluent"
-CMF_URL="http://localhost:8080"
+CMF_URL="${CMF_URL:-https://localhost:8443}"
 CERT_MANAGER_VER="v1.20.2"
 FLINK_OPERATOR_CHART_VER="1.140.1"
+
+# Lab TLS material — populated after the cert-manager phase
+LAB_DIR="${LAB_DIR:-$HOME/.lab}"
+LAB_CA_CRT="${LAB_CA_CRT:-$LAB_DIR/ca.crt}"
+LAB_TRUSTSTORE="${LAB_TRUSTSTORE:-$LAB_DIR/truststore.jks}"
+LAB_TRUSTSTORE_PASSWORD="${LAB_TRUSTSTORE_PASSWORD:-changeit}"
+CURL_TLS=()  # populated to (--cacert "$LAB_CA_CRT") once the CA exists
 
 # Local Docker images (pre-built, loaded into Kind instead of pulling from ECR)
 CMF_IMAGE="519856050701.dkr.ecr.us-west-2.amazonaws.com/docker/dev/confluentinc/cp-cmf:2.3.0"
@@ -143,6 +150,8 @@ for cmd in kubectl helm curl jq; do
 done
 [[ "$SKIP_KIND" == true ]] || have kind || err "kind is required (use --skip-kind to skip)"
 have confluent || warn "confluent CLI not found — Flink environment/catalog/compute-pool steps will be skipped"
+have keytool || err "keytool is required (install JDK or set PATH to include JAVA_HOME/bin)"
+have openssl || err "openssl is required to extract the lab CA certificate"
 
 # ════════════════════════════════════════════════════════════════════════════
 # PHASE 1: Kubernetes cluster
@@ -199,20 +208,9 @@ sleep 10
 kubectl wait --for=condition=ready pod -l app=confluent-operator -n "$NAMESPACE" --timeout=180s
 
 # ════════════════════════════════════════════════════════════════════════════
-# PHASE 3: Confluent Platform (Kafka, SR, Control Center)
+# PHASE 3: cert-manager
 # ════════════════════════════════════════════════════════════════════════════
-banner "Phase 3: Confluent Platform components"
-
-log "Applying confluent-platform.yaml..."
-kubectl apply -f "${LABS_SRC}/k8s/confluent-platform.yaml" -n "$NAMESPACE"
-
-log "Waiting for Confluent Platform pods (this may take 3-5 minutes)..."
-wait_for_pods "" 600
-
-# ════════════════════════════════════════════════════════════════════════════
-# PHASE 4: cert-manager
-# ════════════════════════════════════════════════════════════════════════════
-banner "Phase 4: cert-manager"
+banner "Phase 3: cert-manager"
 
 if kubectl get namespace cert-manager >/dev/null 2>&1; then
   log "cert-manager namespace exists, assuming already installed."
@@ -224,9 +222,67 @@ fi
 wait_for_endpoint "cert-manager" "cert-manager-webhook" 180
 
 # ════════════════════════════════════════════════════════════════════════════
-# PHASE 5: Flink Kubernetes Operator
+# PHASE 4: Lab CA + per-component certificates
 # ════════════════════════════════════════════════════════════════════════════
-banner "Phase 5: Flink Kubernetes Operator"
+banner "Phase 4: Lab CA + per-component certificates"
+
+log "Applying lab CA Issuer + ClusterIssuer..."
+kubectl apply -f "${LABS_SRC}/k8s/cert-manager/issuer.yaml"
+
+log "Waiting for lab CA secret to be issued..."
+kubectl wait --for=condition=Ready certificate/lab-ca-cert -n cert-manager --timeout=180s
+
+log "Applying per-component Certificate resources..."
+kubectl apply -f "${LABS_SRC}/k8s/cert-manager/component-certs.yaml" -n "$NAMESPACE"
+
+log "Waiting for all component certificates to be issued..."
+for cert in kraftcontroller-tls kafka-tls schemaregistry-tls controlcenter-tls \
+            prometheus-tls alertmanager-tls prometheus-client-tls \
+            alertmanager-client-tls prometheus-exporter-truststore \
+            cmf-tls s3proxy-tls; do
+  kubectl wait --for=condition=Ready "certificate/${cert}" -n "$NAMESPACE" --timeout=120s
+done
+
+# Build the local CA bundle + JKS truststore that all clients (producers,
+# scripts, rclone, Python REST automation) will use to validate lab certs.
+log "Extracting lab CA into ${LAB_DIR}..."
+mkdir -p "$LAB_DIR"
+kubectl get secret lab-ca-secret -n cert-manager -o jsonpath='{.data.ca\.crt}' \
+  | base64 --decode > "$LAB_CA_CRT"
+
+log "Building JKS truststore at ${LAB_TRUSTSTORE}..."
+rm -f "$LAB_TRUSTSTORE"
+keytool -importcert -noprompt -trustcacerts \
+  -alias lab-ca \
+  -file "$LAB_CA_CRT" \
+  -keystore "$LAB_TRUSTSTORE" \
+  -storepass "$LAB_TRUSTSTORE_PASSWORD" >/dev/null
+
+cat > "$LAB_DIR/env" <<EOF
+# Source this file to load lab TLS env vars: . ~/.lab/env
+export LAB_CA_CRT="$LAB_CA_CRT"
+export LAB_TRUSTSTORE="$LAB_TRUSTSTORE"
+export LAB_TRUSTSTORE_PASSWORD="$LAB_TRUSTSTORE_PASSWORD"
+export CMF_URL="$CMF_URL"
+EOF
+
+CURL_TLS=(--cacert "$LAB_CA_CRT")
+
+# ════════════════════════════════════════════════════════════════════════════
+# PHASE 5: Confluent Platform (Kafka, SR, Control Center) — TLS-enabled
+# ════════════════════════════════════════════════════════════════════════════
+banner "Phase 5: Confluent Platform components (TLS)"
+
+log "Applying confluent-platform-tls.yaml..."
+kubectl apply -f "${LABS_SRC}/k8s/confluent-platform-tls.yaml" -n "$NAMESPACE"
+
+log "Waiting for Confluent Platform pods (this may take 3-5 minutes)..."
+wait_for_pods "" 600
+
+# ════════════════════════════════════════════════════════════════════════════
+# PHASE 6: Flink Kubernetes Operator
+# ════════════════════════════════════════════════════════════════════════════
+banner "Phase 6: Flink Kubernetes Operator"
 
 if helm status cp-flink-kubernetes-operator -n "$NAMESPACE" >/dev/null 2>&1; then
   log "Flink Kubernetes Operator already installed."
@@ -244,14 +300,16 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=flink-kubernete
   -n "$NAMESPACE" --timeout=180s 2>/dev/null || wait_for_pods "" 180
 
 # ════════════════════════════════════════════════════════════════════════════
-# PHASE 6: Confluent Manager for Apache Flink (CMF)
+# PHASE 7: Confluent Manager for Apache Flink (CMF)
 # ════════════════════════════════════════════════════════════════════════════
-banner "Phase 6: Confluent Manager for Apache Flink (CMF)"
+banner "Phase 7: Confluent Manager for Apache Flink (CMF)"
 
 CMF_TAG="${CMF_IMAGE##*:}"
 CMF_FULL="${CMF_IMAGE%%:*}"
 CMF_REPO="${CMF_FULL%/*}"
 CMF_NAME="${CMF_FULL##*/}"
+
+CMF_VALUES="${LABS_SRC}/k8s/cmf/values.yaml"
 
 if helm status cmf -n "$NAMESPACE" >/dev/null 2>&1; then
   log "CMF already installed."
@@ -262,12 +320,13 @@ elif [[ -n "$CMF_LOCAL_CHART" && -d "$CMF_LOCAL_CHART" ]]; then
     --set image.name="${CMF_NAME}" \
     --set image.tag="${CMF_TAG}" \
     --set image.pullPolicy=Never \
-    --set cmf.sql.production=false \
+    -f "${CMF_VALUES}" \
     --namespace "$NAMESPACE"
 else
   warn "Local CMF chart not found, falling back to remote chart..."
   helm upgrade --install cmf confluentinc/confluent-manager-for-apache-flink \
-    --version "~2.3.0" --set cmf.sql.production=false \
+    --version "~2.3.0" \
+    -f "${CMF_VALUES}" \
     --namespace "$NAMESPACE"
 fi
 
@@ -275,9 +334,9 @@ log "Waiting for CMF pod..."
 wait_for_pods "" 300
 
 # ════════════════════════════════════════════════════════════════════════════
-# PHASE 7: S3proxy (checkpoints + HA storage)
+# PHASE 8: S3proxy (checkpoints + HA storage)
 # ════════════════════════════════════════════════════════════════════════════
-banner "Phase 7: S3proxy for Flink state storage"
+banner "Phase 8: S3proxy for Flink state storage"
 
 RCLONE_FLAG=""
 [[ "$SKIP_RCLONE" == true ]] && RCLONE_FLAG="--skip-rclone"
@@ -285,15 +344,15 @@ RCLONE_FLAG=""
 "${LABS_SRC}/scripts/setup-s3proxy-rclone.sh" ${RCLONE_FLAG}
 
 # ════════════════════════════════════════════════════════════════════════════
-# PHASE 8: Port forwarding
+# PHASE 9: Port forwarding
 # ════════════════════════════════════════════════════════════════════════════
-banner "Phase 8: Port forwarding"
+banner "Phase 9: Port forwarding"
 
 "${LABS_SRC}/scripts/portfw.sh"
 
 log "Waiting for CMF API to become reachable..."
 RETRIES=0
-until curl -sf "${CMF_URL}/cmf/api/v1/environments" >/dev/null 2>&1; do
+until curl -sf "${CURL_TLS[@]}" "${CMF_URL}/cmf/api/v1/environments" >/dev/null 2>&1; do
   RETRIES=$((RETRIES + 1))
   if (( RETRIES > 30 )); then
     warn "CMF API not reachable at ${CMF_URL} after 60s. Continuing anyway..."
@@ -303,9 +362,9 @@ until curl -sf "${CMF_URL}/cmf/api/v1/environments" >/dev/null 2>&1; do
 done
 
 # ════════════════════════════════════════════════════════════════════════════
-# PHASE 9: Flink environment, catalog, database, compute pool
+# PHASE 10: Flink environment, catalog, database, compute pool
 # ════════════════════════════════════════════════════════════════════════════
-banner "Phase 9: Flink resources (environment, catalog, database, compute pool)"
+banner "Phase 10: Flink resources (environment, catalog, database, compute pool)"
 
 if ! have confluent; then
   warn "confluent CLI not found. Skipping Flink resource creation."
@@ -326,7 +385,7 @@ else
 
   # Database (REST API — CLI doesn't support this yet)
   log "Creating Flink database 'training-kafka' via REST API..."
-  curl -sf -H "Content-Type: application/json" \
+  curl -sf "${CURL_TLS[@]}" -H "Content-Type: application/json" \
     -X POST "${CMF_URL}/cmf/api/v1/catalogs/kafka/training-catalog/databases" \
     -d @"${LABS_SRC}/flink/database.json" >/dev/null 2>&1 \
     || log "Database 'training-kafka' may already exist."
@@ -361,13 +420,13 @@ cat <<EOF
   Kubernetes cluster : kind-${KIND_CLUSTER_NAME}
   Namespace          : ${NAMESPACE}
 
-  Services (port-forwarded):
-    Control Center   : http://localhost:9021
-    CMF UI           : http://localhost:8080
-    Schema Registry  : http://localhost:8081
-    Kafka            : localhost:9094
-    Flink REST       : http://localhost:8082
-    S3proxy          : http://localhost:8000
+  Services (port-forwarded, all TLS):
+    Control Center   : https://localhost:9021
+    CMF UI           : https://localhost:8443
+    Schema Registry  : https://localhost:8081
+    Kafka (SSL)      : localhost:9094
+    Flink REST       : https://localhost:8082
+    S3proxy          : https://localhost:8000
 
   Flink resources:
     Environment      : training-env
@@ -378,11 +437,17 @@ cat <<EOF
   S3proxy credentials: admin / password
   Warehouse mount    : ~/warehouse-mount
 
+  Lab TLS material:
+    CA cert (PEM)    : ${LAB_CA_CRT}
+    Truststore (JKS) : ${LAB_TRUSTSTORE}  (password: ${LAB_TRUSTSTORE_PASSWORD})
+    Source env vars  : . ${LAB_DIR}/env
+
   To open Flink SQL shell:
     confluent flink shell \\
       --compute-pool training-compute-pool \\
       --environment training-env \\
-      --url ${CMF_URL}
+      --url ${CMF_URL} \\
+      --certificate-authority-path ${LAB_CA_CRT}
 
   To teardown everything:
     $0 --teardown

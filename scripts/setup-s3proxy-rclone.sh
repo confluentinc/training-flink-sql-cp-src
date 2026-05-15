@@ -177,7 +177,12 @@ if [[ "$DO_RCLONE" == true ]]; then
     ' "$RCLONE_CONF" > "${RCLONE_CONF}.tmp" && mv "${RCLONE_CONF}.tmp" "$RCLONE_CONF"
   fi
 
-  log "Adding rclone remote [${RCLONE_REMOTE}]"
+  LAB_CA_CRT="${LAB_CA_CRT:-$HOME/.lab/ca.crt}"
+  if [[ ! -f "$LAB_CA_CRT" ]]; then
+    die "Lab CA cert not found at $LAB_CA_CRT — run setup-all.sh first."
+  fi
+
+  log "Adding rclone remote [${RCLONE_REMOTE}] (HTTPS, lab CA verification)"
   cat >> "$RCLONE_CONF" << EOF
 
 [${RCLONE_REMOTE}]
@@ -186,7 +191,8 @@ provider = Other
 env_auth = false
 access_key_id = admin
 secret_access_key = password
-endpoint = http://localhost:${S3PROXY_PORT}
+endpoint = https://localhost:${S3PROXY_PORT}
+ca_cert = ${LAB_CA_CRT}
 EOF
   log "rclone config written to $RCLONE_CONF"
 
@@ -201,7 +207,7 @@ fi
 echo
 log "Done."
 echo
-echo "  S3proxy:     http://localhost:${S3PROXY_PORT}"
+echo "  S3proxy:     https://localhost:${S3PROXY_PORT}  (lab CA: ${LAB_CA_CRT:-$HOME/.lab/ca.crt})"
 echo "  Bucket:      warehouse"
 echo "  Credentials: admin / password"
 if [[ "$DO_RCLONE" == true ]]; then
