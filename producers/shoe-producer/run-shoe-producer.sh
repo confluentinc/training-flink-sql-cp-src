@@ -11,10 +11,10 @@ export DELAY_MS="${DELAY_MS:-1000}"
 export COUNT="${COUNT:-0}"
 
 CMF_URL="${CMF_URL:-http://localhost:8080}"
-FLINK_ENV="${FLINK_ENV:-training-env}"
-COMPUTE_POOL="${COMPUTE_POOL:-training-compute-pool}"
-CATALOG_NAME="${CATALOG_NAME:-training-catalog}"
-DATABASE_NAME="${DATABASE_NAME:-training-kafka}"
+FLINK_ENV="${FLINK_ENV:-flink-env}"
+COMPUTE_POOL="${COMPUTE_POOL:-flink-compute-pool}"
+CATALOG_NAME="${CATALOG_NAME:-flink-catalog}"
+DATABASE_NAME="${DATABASE_NAME:-flink-database}"
 
 DEBUG=false
 FLINK_SETUP=false
@@ -35,10 +35,10 @@ for arg in "$@"; do
       echo "  DELAY_MS             Delay between iterations in ms (default: 1000)"
       echo "  COUNT                Number of iterations, 0 = infinite (default: 0)"
       echo "  CMF_URL              CMF REST API base URL (default: http://localhost:8080)"
-      echo "  FLINK_ENV            Flink environment name (default: training-env)"
-      echo "  COMPUTE_POOL         Flink compute pool name (default: training-compute-pool)"
-      echo "  CATALOG_NAME         Flink catalog name (default: training-catalog)"
-      echo "  DATABASE_NAME        Flink database name (default: training-kafka)"
+      echo "  FLINK_ENV            Flink environment name (default: flink-env)"
+      echo "  COMPUTE_POOL         Flink compute pool name (default: flink-compute-pool)"
+      echo "  CATALOG_NAME         Flink catalog name (default: flink-catalog)"
+      echo "  DATABASE_NAME        Flink database name (default: flink-database)"
       exit 0
       ;;
   esac

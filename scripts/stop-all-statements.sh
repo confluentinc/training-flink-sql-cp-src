@@ -13,7 +13,7 @@ set -uo pipefail
 # and we must always reach the K8s-level cleanup (Step 4).
 
 CMF_URL="${CMF_URL:-http://localhost:8080}"
-FLINK_ENV="${FLINK_ENV:-training-env}"
+FLINK_ENV="${FLINK_ENV:-flink-env}"
 NAMESPACE="${NAMESPACE:-confluent}"
 DELETE_ALL=false
 
@@ -30,7 +30,7 @@ while [[ $# -gt 0 ]]; do
       echo "Stops all running Flink SQL statements and cleans up stale resources."
       echo ""
       echo "Options:"
-      echo "  --environment NAME   Flink environment name (default: training-env)"
+      echo "  --environment NAME   Flink environment name (default: flink-env)"
       echo "  --url URL            CMF URL (default: http://localhost:8080)"
       echo "  --namespace NS       Kubernetes namespace (default: confluent)"
       echo "  --delete-all         Also delete COMPLETED/FAILED/STOPPED statements from CMF"

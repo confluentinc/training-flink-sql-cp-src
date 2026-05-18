@@ -2,7 +2,7 @@
   "apiVersion": "cmf.confluent.io/v1",
   "kind": "KafkaDatabase",
   "metadata": {
-    "name": "training-kafka"
+    "name": "flink-database"
   },
   "spec": {
     "kafkaCluster": {
@@ -11,7 +11,7 @@
       }
     },
     "ddlEnvironments": [
-      "training-env"
+      "flink-env"
     ]
   }
 }

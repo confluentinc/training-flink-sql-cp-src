@@ -312,31 +312,31 @@ if ! have confluent; then
   warn "You can create them manually after installing the CLI."
 else
   # Environment
-  log "Creating Flink environment 'training-env'..."
-  confluent flink environment create training-env \
+  log "Creating Flink environment 'flink-env'..."
+  confluent flink environment create flink-env \
     --url "${CMF_URL}" \
     --kubernetes-namespace "$NAMESPACE" 2>/dev/null \
-    || log "Environment 'training-env' may already exist."
+    || log "Environment 'flink-env' may already exist."
 
   # Catalog
-  log "Creating Flink catalog 'training-catalog'..."
+  log "Creating Flink catalog 'flink-catalog'..."
   confluent flink catalog create "${LABS_SRC}/flink/catalog.json" \
     --url "${CMF_URL}" 2>/dev/null \
-    || log "Catalog 'training-catalog' may already exist."
+    || log "Catalog 'flink-catalog' may already exist."
 
   # Database (REST API — CLI doesn't support this yet)
-  log "Creating Flink database 'training-kafka' via REST API..."
+  log "Creating Flink database 'flink-database' via REST API..."
   curl -sf -H "Content-Type: application/json" \
-    -X POST "${CMF_URL}/cmf/api/v1/catalogs/kafka/training-catalog/databases" \
+    -X POST "${CMF_URL}/cmf/api/v1/catalogs/kafka/flink-catalog/databases" \
     -d @"${LABS_SRC}/flink/database.json" >/dev/null 2>&1 \
-    || log "Database 'training-kafka' may already exist."
+    || log "Database 'flink-database' may already exist."
 
   # Compute pool
-  log "Creating Flink compute pool 'training-compute-pool'..."
+  log "Creating Flink compute pool 'flink-compute-pool'..."
   confluent flink compute-pool create "${LABS_SRC}/flink/compute-pool.json" \
-    --environment training-env \
+    --environment flink-env \
     --url "${CMF_URL}" 2>/dev/null \
-    || log "Compute pool 'training-compute-pool' may already exist."
+    || log "Compute pool 'flink-compute-pool' may already exist."
 
   # Verify
   log "Verifying Flink resources..."
@@ -348,7 +348,7 @@ else
   confluent flink catalog list --url "${CMF_URL}" 2>/dev/null || true
   echo
   echo "  Compute pools:"
-  confluent flink compute-pool list --environment training-env --url "${CMF_URL}" 2>/dev/null || true
+  confluent flink compute-pool list --environment flink-env --url "${CMF_URL}" 2>/dev/null || true
   echo
 fi
 
@@ -370,18 +370,18 @@ cat <<EOF
     S3proxy          : http://localhost:8000
 
   Flink resources:
-    Environment      : training-env
-    Catalog          : training-catalog
-    Database         : training-kafka
-    Compute pool     : training-compute-pool
+    Environment      : flink-env
+    Catalog          : flink-catalog
+    Database         : flink-database
+    Compute pool     : flink-compute-pool
 
   S3proxy credentials: admin / password
   Warehouse mount    : ~/warehouse-mount
 
   To open Flink SQL shell:
     confluent flink shell \\
-      --compute-pool training-compute-pool \\
-      --environment training-env \\
+      --compute-pool flink-compute-pool \\
+      --environment flink-env \\
       --url ${CMF_URL}
 
   To teardown everything:

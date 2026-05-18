@@ -115,10 +115,10 @@ echo -e "${GREEN}Lab ${LAB_NUM} environment is ready.${NC}"
 echo
 echo "  Next steps:"
 echo "    1. Open the Flink SQL shell:"
-echo "       confluent flink shell --compute-pool training-compute-pool --environment training-env --url http://localhost:8080"
+echo "       confluent flink shell --compute-pool flink-compute-pool --environment flink-env --url http://localhost:8080"
 echo "    2. Set catalog and database:"
-echo "       USE CATALOG training-catalog;"
-echo "       USE training-kafka;"
+echo "       USE CATALOG flink-catalog;"
+echo "       USE flink-database;"
 echo
 if [[ -f "$PIDS_FILE" ]]; then
   echo "  To stop background producers later:"

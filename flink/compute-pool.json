@@ -2,7 +2,7 @@
   "apiVersion": "cmf.confluent.io/v1",
   "kind": "ComputePool",
   "metadata": {
-    "name": "training-compute-pool"
+    "name": "flink-compute-pool"
   },
   "spec": {
     "type": "SHARED",

@@ -2,7 +2,7 @@
   "apiVersion": "cmf.confluent.io/v1",
   "kind": "ComputePool",
   "metadata": {
-    "name": "training-compute-pool-dedicated"
+    "name": "flink-compute-pool-dedicated"
   },
   "spec": {
     "type": "DEDICATED",

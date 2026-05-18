@@ -2,7 +2,7 @@
   "apiVersion": "cmf.confluent.io/v1",
   "kind": "KafkaCatalog",
   "metadata": {
-    "name": "training-catalog"
+    "name": "flink-catalog"
   },
   "spec": {
     "srInstance": {

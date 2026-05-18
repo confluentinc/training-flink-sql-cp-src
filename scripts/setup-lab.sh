@@ -152,12 +152,12 @@ if [[ -n "$LAB_NUM" ]]; then
   if [[ "$CMF_REACHABLE" == true ]]; then
     # Environment
     env_exists() {
-      curl -sf "${CMF_URL}/cmf/api/v1/environments" 2>/dev/null | grep -q "training-env"
+      curl -sf "${CMF_URL}/cmf/api/v1/environments" 2>/dev/null | grep -q "flink-env"
     }
-    if ! check "Flink environment 'training-env'" env_exists; then
+    if ! check "Flink environment 'flink-env'" env_exists; then
       if [[ "$DO_FIX" == true ]] && command -v confluent >/dev/null 2>&1; then
-        echo -e "  ${WARN} Creating Flink environment 'training-env'..."
-        if confluent flink environment create training-env \
+        echo -e "  ${WARN} Creating Flink environment 'flink-env'..."
+        if confluent flink environment create flink-env \
           --url "${CMF_URL}" \
           --kubernetes-namespace "$NAMESPACE" 2>/dev/null; then
           echo -e "  ${PASS} Environment created"; ERRORS=$((ERRORS - 1))
@@ -169,11 +169,11 @@ if [[ -n "$LAB_NUM" ]]; then
 
     # Catalog
     catalog_exists() {
-      confluent flink catalog list --url "${CMF_URL}" 2>/dev/null | grep -q "training-catalog"
+      confluent flink catalog list --url "${CMF_URL}" 2>/dev/null | grep -q "flink-catalog"
     }
-    if ! check "Flink catalog 'training-catalog'" catalog_exists; then
+    if ! check "Flink catalog 'flink-catalog'" catalog_exists; then
       if [[ "$DO_FIX" == true ]] && command -v confluent >/dev/null 2>&1; then
-        echo -e "  ${WARN} Creating Flink catalog 'training-catalog'..."
+        echo -e "  ${WARN} Creating Flink catalog 'flink-catalog'..."
         if confluent flink catalog create "${LABS_SRC}/flink/catalog.json" \
           --url "${CMF_URL}" 2>/dev/null; then
           echo -e "  ${PASS} Catalog created"; ERRORS=$((ERRORS - 1))
@@ -185,13 +185,13 @@ if [[ -n "$LAB_NUM" ]]; then
 
     # Database
     db_exists() {
-      curl -sf "${CMF_URL}/cmf/api/v1/catalogs/kafka/training-catalog/databases" 2>/dev/null | grep -q "training-kafka"
+      curl -sf "${CMF_URL}/cmf/api/v1/catalogs/kafka/flink-catalog/databases" 2>/dev/null | grep -q "flink-database"
     }
-    if ! check "Flink database 'training-kafka'" db_exists; then
+    if ! check "Flink database 'flink-database'" db_exists; then
       if [[ "$DO_FIX" == true ]]; then
-        echo -e "  ${WARN} Creating Flink database 'training-kafka'..."
+        echo -e "  ${WARN} Creating Flink database 'flink-database'..."
         if curl -sf -H "Content-Type: application/json" \
-          -X POST "${CMF_URL}/cmf/api/v1/catalogs/kafka/training-catalog/databases" \
+          -X POST "${CMF_URL}/cmf/api/v1/catalogs/kafka/flink-catalog/databases" \
           -d @"${LABS_SRC}/flink/database.json" >/dev/null 2>&1; then
           echo -e "  ${PASS} Database created"; ERRORS=$((ERRORS - 1))
         else
@@ -202,13 +202,13 @@ if [[ -n "$LAB_NUM" ]]; then
 
     # Compute pool
     pool_exists() {
-      confluent flink compute-pool list --environment training-env --url "${CMF_URL}" 2>/dev/null | grep -q "training-compute-pool"
+      confluent flink compute-pool list --environment flink-env --url "${CMF_URL}" 2>/dev/null | grep -q "flink-compute-pool"
     }
-    if ! check "Flink compute pool 'training-compute-pool'" pool_exists; then
+    if ! check "Flink compute pool 'flink-compute-pool'" pool_exists; then
       if [[ "$DO_FIX" == true ]] && command -v confluent >/dev/null 2>&1; then
-        echo -e "  ${WARN} Creating Flink compute pool 'training-compute-pool'..."
+        echo -e "  ${WARN} Creating Flink compute pool 'flink-compute-pool'..."
         if confluent flink compute-pool create "${LABS_SRC}/flink/compute-pool.json" \
-          --environment training-env \
+          --environment flink-env \
           --url "${CMF_URL}" 2>/dev/null; then
           echo -e "  ${PASS} Compute pool created"; ERRORS=$((ERRORS - 1))
         else
@@ -243,14 +243,14 @@ if [[ -n "$LAB_NUM" ]]; then
       # Delete orphaned CMF statements (only if CMF is reachable)
       if [[ "$CMF_REACHABLE" == true ]] && command -v confluent >/dev/null 2>&1; then
         confluent flink statement list \
-          --environment training-env --url "${CMF_URL}" 2>/dev/null \
+          --environment flink-env --url "${CMF_URL}" 2>/dev/null \
           | awk -F'|' 'NR>1 && $2 ~ /[a-zA-Z0-9]/ {gsub(/^[ \t]+|[ \t]+$/, "", $2); if ($2 != "" && $2 != "Name") print $2}' \
           | while IFS= read -r stmt; do
               [[ -z "$stmt" ]] && continue
               confluent flink statement stop "$stmt" \
-                --environment training-env --url "${CMF_URL}" 2>/dev/null || true
+                --environment flink-env --url "${CMF_URL}" 2>/dev/null || true
               echo y | confluent flink statement delete "$stmt" \
-                --environment training-env --url "${CMF_URL}" 2>/dev/null || true
+                --environment flink-env --url "${CMF_URL}" 2>/dev/null || true
             done
       fi
       echo -e "  ${PASS} Stale jobs and HA metadata cleaned up"
